@@ -24,19 +24,22 @@ namespace MoreTraitSlots
     [HarmonyPatch(typeof(PawnGenerator), "GenerateTraits")]
     internal static class PawnGenerator_GenerateTraits
     {
+        public static int curTraitCount = -1;
         private static void Postfix(Pawn pawn, PawnGenerationRequest request)
         {
-            int traitCount = Rand.RangeInclusive((int)RMTS.Settings.traitsMin, (int)RMTS.Settings.traitsMax) - pawn.story.traits.allTraits.Count;
+            curTraitCount = Rand.RangeInclusive((int)RMTS.Settings.traitsMin, (int)RMTS.Settings.traitsMax);
             int count = 0;
-            while (traitCount > pawn.story.traits.allTraits.Count && count < 500)
+            while (curTraitCount > pawn.story.traits.allTraits.Count && count < 500)
             {
                 count++;
-                Trait trait = PawnGenerator.GenerateTraitsFor(pawn, 1, request, growthMomentTrait: false).FirstOrFallback();
+                Trait trait = PawnGenerator.GenerateTraitsFor(pawn, 1, request, growthMomentTrait: true).FirstOrFallback();
                 if (trait != null)
                 {
+                    count = 0;
                     pawn.story.traits.GainTrait(trait);
                 }
             }
+            curTraitCount = -1;
         }
     }
 
@@ -45,10 +48,12 @@ namespace MoreTraitSlots
     {
         private static void Prefix(Pawn pawn, ref int traitCount, PawnGenerationRequest? req = null, bool growthMomentTrait = false)
         {
-            traitCount = Rand.RangeInclusive((int)RMTS.Settings.traitsMin, (int)RMTS.Settings.traitsMax) - pawn.story.traits.allTraits.Count;
-            if (pawn.story.traits.allTraits.Count >= traitCount)
+            if (PawnGenerator_GenerateTraits.curTraitCount != -1)
             {
-                traitCount = 0;
+                if (pawn.story.traits.allTraits.Count >= PawnGenerator_GenerateTraits.curTraitCount)
+                {
+                    traitCount = 0;
+                }
             }
         }
     }
