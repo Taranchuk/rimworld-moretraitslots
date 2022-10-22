@@ -27,8 +27,10 @@ namespace MoreTraitSlots
         private static void Postfix(Pawn pawn, PawnGenerationRequest request)
         {
             int traitCount = Rand.RangeInclusive((int)RMTS.Settings.traitsMin, (int)RMTS.Settings.traitsMax) - pawn.story.traits.allTraits.Count;
-            while (traitCount > pawn.story.traits.allTraits.Count)
+            int count = 0;
+            while (traitCount > pawn.story.traits.allTraits.Count && count < 500)
             {
+                count++;
                 Trait trait = PawnGenerator.GenerateTraitsFor(pawn, 1, request, growthMomentTrait: false).FirstOrFallback();
                 if (trait != null)
                 {
