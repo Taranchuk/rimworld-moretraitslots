@@ -1,20 +1,16 @@
 ﻿using HarmonyLib;
 using RimWorld;
-using System;
-using System.Collections.Generic;
 using System.Reflection;
-using System.Reflection.Emit;
-using UnityEngine;
 using Verse;
 
 namespace MoreTraitSlots
 {
     [StaticConstructorOnStartup]
-    class HarmonyPatches
+    internal class HarmonyPatches
     {
         static HarmonyPatches()
         {
-            var harmony = new Harmony("com.rimworld.mod.moretraitslots");
+            Harmony harmony = new Harmony("com.rimworld.mod.moretraitslots");
             harmony.PatchAll(Assembly.GetExecutingAssembly());
 
             //Log.Message(
@@ -24,60 +20,37 @@ namespace MoreTraitSlots
             //    "    CharacterCardUtility.DrawCharacterCard [HarmonyPriority(Priority.VeryHigh)]"*/);
         }
     }
-    
-    [HarmonyPriority(Priority.First)]
-    [HarmonyPatch(typeof(PawnGenerator), "GenerateTraits", null)]
-    static class PawnGenerator_GenerateTraits
+
+    [HarmonyPatch(typeof(PawnGenerator), "GenerateTraits")]
+    internal static class PawnGenerator_GenerateTraits
     {
-        [HarmonyPriority(Priority.VeryHigh)]
-        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        private static void Postfix(Pawn pawn, PawnGenerationRequest request)
         {
-            List<CodeInstruction> l = new List<CodeInstruction>(instructions);
-            MethodInfo RangeInclusive = AccessTools.Method(typeof(Rand), "RangeInclusive");
-            MethodInfo mi = AccessTools.Method(typeof(PawnGenerator_GenerateTraits), "GetRandomTraitCount");
-
-            for (int i = 0; i < l.Count; ++i)
+            int traitCount = Rand.RangeInclusive((int)RMTS.Settings.traitsMin, (int)RMTS.Settings.traitsMax) - pawn.story.traits.allTraits.Count;
+            while (traitCount > pawn.story.traits.allTraits.Count)
             {
-                if (l[i].opcode == OpCodes.Call && l[i].operand == RangeInclusive)
+                Trait trait = PawnGenerator.GenerateTraitsFor(pawn, 1, request, growthMomentTrait: false).FirstOrFallback();
+                if (trait != null)
                 {
-                    l[i].operand = mi;
-                    break;
+                    pawn.story.traits.GainTrait(trait);
                 }
-            }
-            return l;
-        }
-
-        private static int GetRandomTraitCount(int min, int max)
-        {
-            return Rand.RangeInclusive((int)RMTS.Settings.traitsMin, (int)RMTS.Settings.traitsMax);
-        }
-
-        private static OpCode GetOp(int v)
-        {
-            switch (v)
-            {
-                case 0:
-                    return OpCodes.Ldc_I4_0;
-                case 1:
-                    return OpCodes.Ldc_I4_1;
-                case 2:
-                    return OpCodes.Ldc_I4_2;
-                case 3:
-                    return OpCodes.Ldc_I4_3;
-                case 4:
-                    return OpCodes.Ldc_I4_4;
-                case 5:
-                    return OpCodes.Ldc_I4_5;
-                case 6:
-                    return OpCodes.Ldc_I4_6;
-                case 7:
-                    return OpCodes.Ldc_I4_7;
-                default:
-                    return OpCodes.Ldc_I4_8;
             }
         }
     }
-    
+
+    [HarmonyPatch(typeof(PawnGenerator), "GenerateTraitsFor")]
+    internal static class PawnGenerator_GenerateTraitsFor
+    {
+        private static void Prefix(Pawn pawn, ref int traitCount, PawnGenerationRequest? req = null, bool growthMomentTrait = false)
+        {
+            traitCount = Rand.RangeInclusive((int)RMTS.Settings.traitsMin, (int)RMTS.Settings.traitsMax) - pawn.story.traits.allTraits.Count;
+            if (pawn.story.traits.allTraits.Count >= traitCount)
+            {
+                traitCount = 0;
+            }
+        }
+    }
+
     /*[HarmonyPatch(typeof(CharacterCardUtility), "DrawCharacterCard", new Type[] { typeof(Rect), typeof(Pawn), typeof(Action), typeof(Rect) })]
     static class CharacterCardUtility_DrawCharacterCard
     {
